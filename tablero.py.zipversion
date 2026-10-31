@@ -1,0 +1,354 @@
+"""
+tablero.py — Genera la capa visible en Obsidian.
+
+Publica:
+- LLM-Memoria/Tablero.md
+- LLM-Memoria/Huecos.md
+- LLM-Memoria/Conocimiento.md
+- LLM-Memoria/AprendidoHoy.md
+
+No toca notas personales ni notas de conocimiento.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from analisis import analizar
+from config import cargar_config, preparar_carpetas
+from eventos import emitir_evento
+from heartbeat import latir, segundos_sin_latir
+from incidencias import abiertas
+from memoria import estado_indice
+from metricas import medir
+from escritor import crear_nota
+from util import leer_json, timestamp_iso
+
+
+def _tabla(filas: list[list[str]]) -> str:
+    if not filas:
+        return "_Sin datos._"
+
+    encabezados = filas[0]
+    cuerpo = filas[1:]
+
+    lineas = [
+        "| " + " | ".join(encabezados) + " |",
+        "| " + " | ".join(["---"] * len(encabezados)) + " |",
+    ]
+
+    for fila in cuerpo:
+        lineas.append("| " + " | ".join(fila) + " |")
+
+    return "\n".join(lineas)
+
+
+def _leer_metricas_recientes(config, limite: int = 20) -> list[dict[str, Any]]:
+    path = config.metricas_path
+
+    if not path.exists():
+        return []
+
+    lineas = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    recientes = []
+
+    for linea in lineas[-limite:]:
+        try:
+            recientes.append(json.loads(linea))
+        except json.JSONDecodeError:
+            continue
+
+    return list(reversed(recientes))
+
+
+def _ultimo_evento(config) -> dict[str, Any] | None:
+    path = config.eventos_path
+
+    if not path.exists():
+        return None
+
+    lineas = path.read_text(encoding="utf-8", errors="replace").splitlines()
+
+    for linea in reversed(lineas):
+        try:
+            return json.loads(linea)
+        except json.JSONDecodeError:
+            continue
+
+    return None
+
+
+def generar_tablero() -> str:
+    config = cargar_config()
+    analisis = analizar()
+    estado = estado_indice()
+    incidencias = abiertas()
+    metricas = _leer_metricas_recientes(config)
+    evento = _ultimo_evento(config)
+
+    segundos = segundos_sin_latir()
+    latido = "Sin heartbeat" if segundos is None else f"{segundos:.0f}s"
+
+    filas_metricas = [["Módulo", "Entrada", "Segundos", "Resultado"]]
+
+    for metrica in metricas[:10]:
+        filas_metricas.append(
+            [
+                str(metrica.get("modulo", "-")),
+                str(metrica.get("entrada", "-"))[:60],
+                str(metrica.get("segundos", "-")),
+                str(metrica.get("resultado", "-")),
+            ]
+        )
+
+    filas_incidencias = [["ID", "Módulo", "Estado", "Mensaje"]]
+
+    for incidencia in incidencias[:10]:
+        filas_incidencias.append(
+            [
+                incidencia["id"][:8],
+                incidencia.get("modulo", "-"),
+                incidencia.get("estado", "-"),
+                incidencia.get("mensaje", "-")[:100],
+            ]
+        )
+
+    return f"""## Estado del sistema
+
+- **Bóveda:** `{config.boveda}`
+- **Heartbeat:** {latido}
+- **Archivos indexados:** {estado.get('archivos', 0)}
+- **Chunks indexados:** {estado.get('chunks', 0)}
+- **Chunks con embedding:** {estado.get('con_embedding', 0)}
+- **Notas generadas:** {analisis.total_notas_generadas}
+- **Incidencias abiertas:** {len(incidencias)}
+
+## Actividad reciente
+
+{_tabla(filas_metricas)}
+
+## Incidencias
+
+{_tabla(filas_incidencias)}
+
+## Último evento
+
+- **Tipo:** {evento.get('tipo', '-') if evento else '-'}
+- **Fecha:** {evento.get('ts', '-') if evento else '-'}
+- **Actor:** {evento.get('actor', '-') if evento else '-'}
+
+## Temas principales
+
+{_tabla(
+    [["Tema", "Notas", "Confianza media"]]
+    + [
+        [tema["tema"], str(tema["notas"]), str(tema["confianza_media"])]
+        for tema in analisis.temas[:15]
+    ]
+)}
+"""
+
+
+def generar_huecos(analisis) -> str:
+    if not analisis.huecos:
+        return "No se detectaron huecos relevantes con el perfil actual."
+
+    filas = [["Interés", "Motivo"]]
+
+    for hueco in analisis.huecos:
+        filas.append([hueco["interes"], hueco["motivo"]])
+
+    return f"""## Huecos de conocimiento
+
+{_tabla(filas)}
+
+## Notas huérfanas
+
+{
+        "\n".join(f"- `{ruta}`" for ruta in analisis.huerfanas)
+        or "_No hay notas huérfanas relevantes._"
+    }
+"""
+
+
+def generar_conocimiento(analisis) -> str:
+    def lista(temas: list[dict[str, Any]]) -> str:
+        if not temas:
+            return "_Ninguno._"
+
+        return "\n".join(
+            f"- **{tema['tema']}** — {tema['notas']} notas, confianza {tema['confianza_media']}"
+            for tema in temas
+        )
+
+    return f"""## Áreas dominadas
+
+{lista(analisis.dominadas)}
+
+## Áreas activas
+
+{lista(analisis.activas)}
+
+## Áreas emergentes
+
+{lista(analisis.emergentes)}
+"""
+
+
+def generar_aprendido_hoy(analisis) -> str:
+    config = cargar_config()
+    hoy = datetime.now().strftime("%Y-%m-%d")
+
+    path = config.eventos_path
+    aprendidos: list[str] = []
+
+    if path.exists():
+        for linea in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            try:
+                evento = json.loads(linea)
+            except json.JSONDecodeError:
+                continue
+
+            if (
+                evento.get("tipo") == "aprender.ciclo.ok"
+                and str(evento.get("ts", "")).startswith(hoy)
+            ):
+                payload = evento.get("payload", {})
+                aprendidos.append(
+                    f"- Ciclo de aprendizaje: {payload.get('publicados', 0)} notas publicadas, "
+                    f"{payload.get('duplicados', 0)} duplicados, "
+                    f"{payload.get('errores', 0)} errores."
+                )
+
+    cuerpo = "\n".join(aprendidos) or "- No se registró aprendizaje hoy."
+
+    return f"""## Aprendizaje del {hoy}
+
+{cuerpo}
+
+## Estado del índice
+
+- Archivos: {analisis.total_archivos}
+- Chunks: {analisis.total_chunks}
+- Notas generadas: {analisis.total_notas_generadas}
+"""
+
+
+def _publicar(
+    titulo: str,
+    cuerpo: str,
+    carpeta: str,
+    tags: list[str],
+) -> None:
+    crear_nota(
+        titulo,
+        cuerpo,
+        carpeta=carpeta,
+        tags=tags,
+        fuente="tablero",
+        confianza=1.0,
+        actor="tablero",
+        motivo="visibilidad",
+        sobrescribir=True,
+    )
+
+
+def generar_tableros(*, dry_run: bool = False) -> dict[str, Any]:
+    config = cargar_config()
+    preparar_carpetas(config)
+
+    latir("tablero")
+
+    analisis = analizar()
+
+    documentos = {
+        "Tablero": (
+            generar_tablero(),
+            "LLM-Memoria",
+            ["tablero", "memoria-vectorial"],
+        ),
+        "Huecos": (
+            generar_huecos(analisis),
+            "LLM-Memoria",
+            ["huecos", "memoria-vectorial"],
+        ),
+        "Conocimiento": (
+            generar_conocimiento(analisis),
+            "LLM-Memoria",
+            ["conocimiento", "memoria-vectorial"],
+        ),
+        "AprendidoHoy": (
+            generar_aprendido_hoy(analisis),
+            "LLM-Memoria",
+            ["aprendizaje", "memoria-vectorial"],
+        ),
+    }
+
+    resultados: dict[str, Any] = {}
+
+    with medir("tablero", "generacion") as metrica:
+        for titulo, (cuerpo, carpeta, tags) in documentos.items():
+            if dry_run:
+                resultados[titulo] = "propuesto"
+                continue
+
+            resultado = crear_nota(
+                titulo,
+                cuerpo,
+                carpeta=carpeta,
+                tags=tags,
+                fuente="tablero",
+                confianza=1.0,
+                actor="tablero",
+                motivo="visibilidad",
+                sobrescribir=True,
+            )
+
+            resultados[titulo] = (
+                str(resultado.ruta.relative_to(config.boveda))
+                if resultado.ok
+                else resultado.mensaje
+            )
+
+    metrica["salida"] = resultados
+
+    emitir_evento(
+        "tablero.generado",
+        payload={"dry_run": dry_run, "documentos": list(resultados)},
+    )
+
+    return {
+        "generado": timestamp_iso(),
+        "dry_run": dry_run,
+        "documentos": resultados,
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Genera la capa visible en Obsidian.")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--check", action="store_true")
+
+    args = parser.parse_args()
+
+    config = cargar_config()
+    preparar_carpetas(config)
+
+    if args.check:
+        print(f"Bóveda: {config.boveda}")
+        print(f"Notas: {config.notas}")
+        return 0
+
+    resultado = generar_tableros(dry_run=args.dry_run)
+    print(json.dumps(resultado, ensure_ascii=False, indent=2))
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

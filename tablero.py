@@ -87,7 +87,7 @@ def generar_tablero() -> str:
     config = cargar_config()
     analisis = analizar()
     estado = estado_indice()
-    incidencias = abierta()
+    incidencias = abiertas()
     metricas = _leer_metricas_recientes(config)
     evento = _ultimo_evento(config)
 
