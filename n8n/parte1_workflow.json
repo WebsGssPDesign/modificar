@@ -120,7 +120,7 @@
             },
             {
               "name": "Authorization",
-              "value": "={{ $json.url.includes('api.github.com') ? $credentials.github_pat.Authorization : '' }}"
+              "value": "={{ $json.url.includes('api.github.com') ? ('token ' + ($credentials.github_pat.token || $credentials.github_pat.Authorization || '')) : '' }}"
             }
           ]
         },
@@ -145,7 +145,7 @@
       ],
       "retryOnFail": true,
       "maxTries": 2,
-      "notes": "Credencial: crear en n8n una Header Auth llamada 'github_pat' con nombre Authorization y valor 'token ghp_...' (decisión 10). Se adjunta SOLO a api.github.com; los feeds públicos van sin token. neverError=true: fuente caída se saltea y se anota, no detiene la corrida (§12)."
+      "notes": "Credencial: crear en n8n una Header Auth llamada 'github_pat' con nombre 'Authorization' y valor 'token ghp_...' (decision 10). Se adjunta SOLO a api.github.com; los feeds publicos van sin token. Si tu version de n8n no expone $credentials en expresiones del nodo HTTP, cambia la autenticacion del nodo a 'Header Auth' > credencial github_pat (Predefined) y borra el header Authorization manual. neverError=true: fuente caida se saltea y se anota, no detiene la corrida (parrafo 12)."
     },
     {
       "parameters": {
@@ -365,5 +365,7 @@
   "pinData": {},
   "meta": {
     "templateCredsSetupCompleted": false
-  }
+  },
+  "active": false,
+  "versionId": "parte1-v3"
 }
