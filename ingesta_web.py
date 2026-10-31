@@ -950,6 +950,10 @@ def contexto() -> dict[str, Any]:
             if isinstance(o, dict) and o.get("estado", "activo") == "activo"
         ],
         "keywords": criterios.get("keywords", []),
+        # Listas de consulta fijas (watchlist): las necesita el Planificador de n8n
+        # para construir las consultas de releases Atom y RSS sin leer los JSON.
+        "fuentes_rss": criterios.get("fuentes_rss", []),
+        "releases_atom": criterios.get("releases_atom", []),
         "huecos": huecos,
         "dominios_permitidos": config.web_dominios,
         "max_antiguedad_dias": reglas.max_antiguedad_dias,

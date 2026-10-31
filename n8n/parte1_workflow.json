@@ -1,0 +1,343 @@
+{
+  "name": "Aprendizaje Web — Parte 1 (planificar, buscar, filtrar)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 3,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "a1-00-trigger",
+      "name": "Disparo 03:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1200,
+        0
+      ],
+      "notes": "Solo corre si n8n está levantado y la PC despierta (§8.4). Si no configuraste GENERIC_TIMEZONE=America/Montevideo, esta hora es de Nueva York (§8.3)."
+    },
+    {
+      "parameters": {
+        "command": "powershell -NoProfile -Command \"$env:LLM_MODEL='qwen3.5-4b'; cd 'F:\\automatizaciones\\homeLab\\memoria_vectorial'; .\\.venv\\Scripts\\python.exe guardian.py --json\""
+      },
+      "id": "a1-01-guardian",
+      "name": "Check LM Studio (guardian)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aborta la corrida si LM Studio o SQLite están mal (decisión 7 del plan).\nconst raw = $input.first().json.stdout || '';\nlet informe = null;\ntry { informe = JSON.parse(raw); } catch (e) { throw new Error('guardian.py no devolvió JSON. Salida: ' + raw.slice(0, 300)); }\nconst checks = informe.checks || {};\nconst malos = Object.entries(checks).filter(([k, v]) => v.estado === 'error').map(([k]) => k);\nif (malos.includes('lmstudio') || malos.includes('sqlite')) {\n  throw new Error('Sistema no sano, no arranco el aprendizaje web: ' + malos.join(', '));\n}\nreturn [{ json: { peor: informe.peor || 'ok', avisos: malos.join(',') || 'ninguno' } }];"
+      },
+      "id": "a1-02-checksalud",
+      "name": "Verificar salud",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "command": "powershell -NoProfile -Command \"cd 'F:\\automatizaciones\\homeLab\\memoria_vectorial'; .\\.venv\\Scripts\\python.exe ingesta_web.py --contexto\""
+      },
+      "id": "a1-03-contexto",
+      "name": "Cargar contexto (ingesta_web --contexto)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parsea el stdout de ingesta_web.py --contexto (JSON ASCII, §11.1).\nconst raw = $input.first().json.stdout || '';\nlet contexto;\ntry { contexto = JSON.parse(raw); } catch (e) { throw new Error('--contexto no devolvió JSON válido: ' + raw.slice(0, 300)); }\nreturn [{ json: { contexto } }];"
+      },
+      "id": "a1-04-parsectx",
+      "name": "Parsear contexto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/* PLANIFICADOR (versión determinista; ver variante con qwen3.5-4b en\n * n8n/parte1_planificar_buscar_filtrar.js). Reparte max_consultas entre:\n *  1) releases Atom + RSS de la watchlist (criterios_busqueda.json, llegan en --contexto)\n *  2) búsqueda GitHub/HuggingFace por los temas de mayor peso efectivo.\n * Cada consulta lleva su DISPARADOR obligatorio (Context.md invariante 11):\n * hueco | dominio_vigilado | peticion. Ninguna URL se arma con texto web:\n * solo keywords propias, codificadas con encodeURIComponent. */\nconst MAX_URL_LEN = 500;\nconst HOSTS_API = new Set(['api.github.com','huggingface.co','github.com','blog.n8n.io','ollama.com','openwebui.com','news.ycombinator.com','reddit.com','www.reddit.com','phoronix.com','github.blog']);\n\nconst ctx = $('Parsear contexto').first().json.contexto;\nconst pesos = ctx.pesos_efectivos || {};\nconst huecos = ctx.huecos || [];\nconst limites = ctx.limites_por_ciclo || {};\nconst maxConsultas = Math.max(1, Math.min(Number(limites.max_consultas) || 8, 8));\nconst setHuecos = new Set(huecos.map(h => String(h.interes).toLowerCase()));\n\nfunction esSegura(u) {\n  if (!u || String(u).length > MAX_URL_LEN) return false;\n  let x; try { x = new URL(u); } catch (e) { return false; }\n  if (x.protocol !== 'https:') return false;\n  let host = x.hostname.toLowerCase();\n  if (host.startsWith('www.')) host = host.slice(4);\n  return HOSTS_API.has(host);\n}\nfunction slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'tema'; }\nfunction q(t) { return String(t).toLowerCase().replace(/[^\\w\\sáéíóúñü-]/g, ' ').replace(/\\s+/g, ' ').trim().split(' ').filter(w => w.length >= 3).slice(0, 6).join(' '); }\n\nconst consultas = [];\nconst vistos = new Set();\nfunction add(c) {\n  if (!c || !esSegura(c.url)) return;\n  const clave = c.disparador.tipo + '|' + c.disparador.detalle;\n  if (vistos.has(clave)) return;\n  vistos.add(clave);\n  consultas.push(c);\n}\n\n// 1) Watchlist fija: releases Atom primero (novedades duras), luego RSS.\nfor (const f of (ctx.releases_atom || [])) {\n  if (consultas.length >= maxConsultas) break;\n  add({ url: f.url, tipo_fuente: 'releases_atom', nombre: f.nombre || slug(f.url), ruido: 'bajo',\n        disparador: { tipo: 'dominio_vigilado', detalle: 'release: ' + (f.nombre || f.url) } });\n}\nfor (const f of (ctx.fuentes_rss || [])) {\n  if (consultas.length >= maxConsultas) break;\n  add({ url: f.url, tipo_fuente: 'rss', nombre: f.nombre || slug(f.url), ruido: f.ruido || 'bajo',\n        disparador: { tipo: 'dominio_vigilado', detalle: 'rss: ' + (f.nombre || f.url) } });\n}\n\n// 2) Búsquedas por tema, ordenadas por peso efectivo (+0.5 bonus si hay hueco).\nconst temas = Object.keys(pesos)\n  .map(nombre => ({ nombre, p: (Number(pesos[nombre]) || 0.5) + (setHuecos.has(nombre.toLowerCase()) ? 0.5 : 0) }))\n  .sort((a, b) => b.p - a.p);\nlet i = 0;\nfor (const tema of temas) {\n  if (consultas.length >= maxConsultas) break;\n  const kw = q(tema.nombre);\n  if (!kw) continue;\n  const tipoDisp = setHuecos.has(tema.nombre.toLowerCase()) ? 'hueco' : 'dominio_vigilado';\n  const mod = i % 3; i++;\n  if (mod === 1) {\n    add({ url: 'https://huggingface.co/api/models?search=' + encodeURIComponent(kw) + '&sort=lastModified&direction=-1&limit=15',\n          tipo_fuente: 'huggingface_api', nombre: tema.nombre, ruido: 'bajo',\n          disparador: { tipo: tipoDisp, detalle: tema.nombre } });\n  } else {\n    const extra = mod === 2 ? ' in:description' : '';\n    add({ url: 'https://api.github.com/search/repositories?q=' + encodeURIComponent(kw + extra) + '&sort=updated&order=desc&per_page=15',\n          tipo_fuente: 'github_api', nombre: tema.nombre, ruido: 'bajo',\n          disparador: { tipo: tipoDisp, detalle: tema.nombre } });\n  }\n}\n\nreturn consultas.map(c => ({ json: c }));"
+      },
+      "id": "a1-05-planificador",
+      "name": "Planificador",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "a1-06-split",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "memoria-vectorial/0.1 (+local personal knowledge base)"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json, application/atom+xml, application/rss+xml, text/xml;q=0.9, */*;q=0.5"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.url.includes('api.github.com') ? $credentials.github_pat.Authorization : '' }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "a1-07-http",
+      "name": "HTTP Buscar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        -100
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "notes": "Credencial: crear en n8n una Header Auth llamada 'github_pat' con nombre Authorization y valor 'token ghp_...' (decisión 10). Se adjunta SOLO a api.github.com; los feeds públicos van sin token. neverError=true: fuente caída se saltea y se anota, no detiene la corrida (§12)."
+    },
+    {
+      "parameters": {
+        "jsCode": "/* Normaliza la respuesta de cada fuente a candidatos planos:\n * {url, titulo, fecha_publicacion, snippet, fuente, tipo_fuente, disparador}.\n * El contenido externo es DATO: solo se leen campos conocidos; nunca se ejecuta\n * ni se interpola en comandos (§10). Status >= 400 -> marcador de fuente fallida.\n * Parsing XML propio (robusto): n8n no garantiza $parseXml en el nodo Code. */\nconst resp = $input.first().json;\nconst consulta = $('Split In Batches').first().json;\nconst status = Number(resp.statusCode || resp.status || 200);\nif (status >= 400) {\n  return [{ json: { _fuente_fallida: consulta.url, _status: status } }];\n}\n\n// Body: JSON ya parseado (GitHub/HF) o string XML (Atom/RSS).\nlet body = (resp.data !== undefined) ? resp.data : resp.body;\nif (typeof body === 'string') {\n  try { body = JSON.parse(body); } catch (e) { body = { _xml: body }; }\n}\n\nfunction desentitatizar(s) {\n  return String(s == null ? '' : s)\n    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"')\n    .replace(/&#39;|&apos;/g, \"'\").replace(/&amp;/g, '&');\n}\nfunction txt(v, n) { return desentitatizar(v).replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, n); }\nfunction isoDe(f) {\n  if (!f) return null;\n  const d = new Date(desentitatizar(f));\n  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);\n}\n// Extrae bloques <entry>/<item> y adentro el primer texto de una etiqueta.\nfunction bloques(xml, tag) {\n  const re = new RegExp('<' + tag + '(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)</' + tag + '>', 'gi');\n  const out = []; let m;\n  while ((m = re.exec(xml)) && out.length < 15) out.push(m[1]);\n  return out;\n}\nfunction campo(bloque, tag) {\n  // con atributos (href) o texto plano\n  const attr = new RegExp('<' + tag + '[^>]*\\\\bhref=\"([^\"]+)\"', 'i').exec(bloque);\n  if (attr) return attr[1];\n  const re = new RegExp('<' + tag + '(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)</' + tag + '>', 'i');\n  const m = re.exec(bloque);\n  if (!m) return '';\n  return desentitatizar(m[1].replace(/<!\\[CDATA\\[[\\s\\S]*?\\]\\]>/g, s => s.slice(9, -3)));\n}\n\nconst candidatos = [];\nconst tipo = consulta.tipo_fuente;\n\nif (tipo === 'github_api' && body && Array.isArray(body.items)) {\n  for (const r of body.items.slice(0, 15)) {\n    candidatos.push({\n      url: r.html_url, titulo: r.full_name,\n      fecha_publicacion: isoDe(r.pushed_at || r.updated_at),\n      snippet: txt(r.description, 400), fuente: 'github.com',\n      estrellas: r.stargazers_count || 0,\n    });\n  }\n} else if (tipo === 'huggingface_api' && Array.isArray(body)) {\n  for (const m of body.slice(0, 15)) {\n    candidatos.push({\n      url: 'https://huggingface.co/' + m.modelId, titulo: m.modelId,\n      fecha_publicacion: isoDe(m.lastModified),\n      snippet: txt(m.pipeline_tag || '') + ' | descargas: ' + (m.downloads ?? '?'),\n      fuente: 'huggingface.co',\n    });\n  }\n} else if ((tipo === 'releases_atom' || tipo === 'rss') && typeof (body._xml || '') === 'string') {\n  const xml = body._xml;\n  const blocks = bloques(xml, 'entry').length ? bloques(xml, 'entry') : bloques(xml, 'item');\n  for (const b of blocks) {\n    const url = campo(b, 'link');\n    candidatos.push({\n      url: /^https?:\\/\\//.test(url) ? url : '',\n      titulo: txt(campo(b, 'title'), 200),\n      fecha_publicacion: isoDe(campo(b, 'published') || campo(b, 'updated') || campo(b, 'pubDate') || campo(b, 'dc:date')),\n      snippet: txt(campo(b, 'summary') || campo(b, 'description') || campo(b, 'content:encoded') || campo(b, 'content'), 400),\n      fuente: (() => { try { return new URL(url).hostname.replace(/^www\\./, ''); } catch (e) { return 'desconocida'; } })(),\n      ruido: consulta.ruido || 'bajo',\n    });\n  }\n}\n\nreturn candidatos\n  .filter(c => /^https:\\/\\/.+/.test(c.url || ''))\n  .map(c => ({ json: { ...c, tipo_fuente: tipo, disparador: consulta.disparador, fuente_consulta: consulta.nombre } }));\n"
+      },
+      "id": "a1-08-normaliza",
+      "name": "Normalizar candidatos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/* FILTRAR CANDIDATOS (§5 paso 5): dedupe por URL canónica contra urls_vistas y\n * dentro del ciclo, antigüedad ≤ max_antiguedad_dias, palabras de descarte y\n * tope max_hallazgos. Las fuentes que fallaron se listan en _avisos. */\nconst ctx = $('Parsear contexto').first().json.contexto;\nconst vistas = new Set((ctx.urls_vistas || []).map(normalizarUrl).filter(Boolean));\nconst descartarPalabras = (ctx.descartar || []).map(s => String(s).toLowerCase());\nconst maxDias = Number(ctx.max_antiguedad_dias) || 365;\nconst maxHallazgos = Number((ctx.limites_por_ciclo || {}).max_hallazgos) || 20;\nconst hoy = new Date();\n\nfunction normalizarUrl(u) {\n  try {\n    const x = new URL(String(u).trim());\n    let host = x.hostname.toLowerCase(); if (host.startsWith('www.')) host = host.slice(4);\n    for (const k of [...x.searchParams.keys()]) if (/^utm_|^ref$|fbclid|ga_source/i.test(k)) x.searchParams.delete(k);\n    const path = x.pathname.replace(/\\/+$/, '') || '/';\n    return host + path + (x.search ? '?' + x.searchParams.toString() : '');\n  } catch (e) { return null; }\n}\nfunction fechaValida(f) {\n  if (!f) return true;\n  const d = new Date(f);\n  if (isNaN(d.getTime())) return true;\n  if (d > new Date(hoy.getTime() + 2 * 864e5)) return false;\n  return (hoy - d) / 864e5 <= maxDias;\n}\n\n// Recolección: todos los ítems que llegaron de la rama (incluye marcadores _fuente_fallida)\nconst itemsAll = $input.all();\nconst fallidas = itemsAll.map(i => i.json).filter(j => j._fuente_fallida).map(j => j._fuente_fallida + ' (' + j._status + ')');\nconst crudos = itemsAll.map(i => i.json).filter(j => j.url && !j._fuente_fallida);\n\nconst vistosCiclo = new Set();\nconst salida = [];\nfor (const j of crudos) {\n  const u = normalizarUrl(j.url);\n  if (!u || vistas.has(u) || vistosCiclo.has(u)) continue;\n  if (!fechaValida(j.fecha_publicacion)) continue;\n  const s = ((j.titulo || '') + ' ' + (j.snippet || '')).toLowerCase();\n  if (descartarPalabras.some(p => s.includes(p))) continue;\n  vistosCiclo.add(u);\n  salida.push({ json: { ...j, url_canonica: u } });\n  if (salida.length >= maxHallazgos) break;\n}\nif (salida.length === 0) {\n  return [{ json: { _resumen: 'sin candidatos nuevos', _fallidas: fallidas.join(', ') || 'ninguna' } }];\n}\nreturn salida;"
+      },
+      "id": "a1-11-filtrar",
+      "name": "Filtrar candidatos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "id": "a1-12-pausa",
+      "name": "Pausa educativa",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        0
+      ],
+      "notes": "Cortesía entre fases de red (pausa_ciclo_seg=300 en reglas.json es para navegador.py; acá alcanza con poco porque ya respetamos límites por fuente)."
+    },
+    {
+      "parameters": {
+        "content": "## Aprendizaje Web — Parte 1\n- Consultas: **{{ $('Planificador').all().length }}**\n- Candidatos tras filtro: **{{ $input.all().length }}**\n- Primeros: {{ $input.all().slice(0,3).map(i => i.json.titulo).join(' · ') }}\n\n➡️ Continúa en **Parte 2** (pre-filtro Investigador, extracción, Evaluador, puntaje).",
+        "options": {}
+      },
+      "id": "a1-13-resumen",
+      "name": "Resumen Parte 1",
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Disparo 03:00": {
+      "main": [
+        [
+          {
+            "node": "Check LM Studio (guardian)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check LM Studio (guardian)": {
+      "main": [
+        [
+          {
+            "node": "Verificar salud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar salud": {
+      "main": [
+        [
+          {
+            "node": "Cargar contexto (ingesta_web --contexto)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cargar contexto (ingesta_web --contexto)": {
+      "main": [
+        [
+          {
+            "node": "Parsear contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear contexto": {
+      "main": [
+        [
+          {
+            "node": "Planificador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Planificador": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "HTTP Buscar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pausa educativa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Buscar": {
+      "main": [
+        [
+          {
+            "node": "Normalizar candidatos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar candidatos": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pausa educativa": {
+      "main": [
+        [
+          {
+            "node": "Filtrar candidatos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar candidatos": {
+      "main": [
+        [
+          {
+            "node": "Resumen Parte 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Montevideo",
+    "saveExecutionProgress": true
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
