@@ -201,6 +201,19 @@
         1200,
         0
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fin del bucle: junta los candidatos normalizados de TODAS las consultas.\n// En n8n, al terminar Split In Batches por la salida 'done', recuperamos los items\n// que produjo 'Normalizar candidatos' en esta ejecución completa.\nconst items = $('Normalizar candidatos').all()\n  .map(i => i.json)\n  .filter(j => j.url || j._fuente_fallida);\nif (items.length === 0) {\n  return [{ json: { _resumen: 'sin candidatos nuevos', _fallidas: 'ninguna fuente devolvió ítems' } }];\n}\nreturn items.map(j => ({ json: j }));"
+      },
+      "id": "a1-09-recolectar",
+      "name": "Recolectar todo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        150
+      ]
     }
   ],
   "connections": {
@@ -281,7 +294,7 @@
         ],
         [
           {
-            "node": "Pausa educativa",
+            "node": "Recolectar todo",
             "type": "main",
             "index": 0
           }
@@ -326,6 +339,17 @@
         [
           {
             "node": "Resumen Parte 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recolectar todo": {
+      "main": [
+        [
+          {
+            "node": "Filtrar candidatos",
             "type": "main",
             "index": 0
           }
