@@ -1,0 +1,581 @@
+CONTEXT.md — Memoria Vectorial (Arquitectura Jerárquica de Conocimiento)
+
+Fuente única de verdad del proyecto.
+
+Su objetivo es permitir que cualquier IA o humano retome el desarrollo sin releer conversaciones completas ni inspeccionar todo el código.
+
+Este documento no describe la implementación línea por línea. Describe la arquitectura, filosofía, decisiones tomadas, estado actual y dirección futura del sistema.
+
+Última actualización: 2026-10-25
+ Estado general: Arquitectura validada. Evolución aprobada hacia memoria jerárquica de conocimiento.
+
+1. Visión del Proyecto
+
+Memoria Vectorial no es un RAG tradicional.
+
+Su propósito no es almacenar documentos y recuperarlos por similitud.
+
+Su propósito es construir una memoria persistente para un agente de IA capaz de:
+
+Aprender de una bóveda Obsidian.
+Aprender de fuentes web permitidas.
+Consolidar conocimiento.
+Generar entidades.
+Generar procedimientos reutilizables (skills).
+Detectar lagunas de conocimiento.
+Mantener un perfil persistente del usuario.
+Exponer todo el conocimiento mediante MCP.
+
+La memoria debe evolucionar desde la recuperación de texto hacia la recuperación de conocimiento consolidado.
+
+2. Filosofía de Diseño
+Lo que NO es
+
+No es:
+
+Documento
+ ↓
+Chunk
+ ↓
+Embedding
+ ↓
+Respuesta
+
+
+porque ese modelo se degrada cuando la memoria crece.
+
+Lo que SÍ es
+
+Debe evolucionar hacia:
+
+Documento
+ ↓
+Chunk
+ ↓
+Hecho
+ ↓
+Entidad
+ ↓
+Dominio
+ ↓
+Proyecto
+ ↓
+Perfil
+ ↓
+Skill
+
+
+donde cada nivel representa una comprensión superior del conocimiento.
+
+La memoria debe almacenar conocimiento progresivamente destilado.
+
+3. Descubrimiento Importante
+
+Durante el análisis se concluyó que el proyecto actual ya contiene gran parte de la arquitectura necesaria.
+
+No es necesario rehacer el sistema.
+
+La evolución debe construirse sobre la base existente.
+
+4. Arquitectura Actual
+Capa de Indexación
+
+Responsable de transformar documentos en memoria consultable.
+
+Componentes:
+
+memoria.py
+embeddings.py
+indexer.py
+vector_store.py
+
+
+Funciones:
+
+Bóveda
+ ↓
+Chunks
+ ↓
+Embeddings
+ ↓
+SQLite
+
+Capa de Aprendizaje
+
+Responsable de transformar documentos en conocimiento nuevo.
+
+Componentes:
+
+aprender.py
+aprender_web.py
+
+
+Salida:
+
+LLM-Memoria/Hechos
+LLM-Memoria/Web
+
+
+Cada nota contiene:
+
+Resumen
+Hechos
+Tags
+Entidades
+Fuente
+Estado
+
+Capa de Entidades
+
+Componente:
+
+entidades.py
+
+
+Responsabilidades:
+
+Hechos
+ ↓
+Entidades
+ ↓
+Relaciones
+
+
+Genera:
+
+LLM-Memoria/Entidades
+
+Capa de Skills
+
+Componente:
+
+crear_skills.py
+
+
+Responsabilidades:
+
+Hechos
+ ↓
+Procedimientos reutilizables
+ ↓
+Skills
+
+
+Genera:
+
+skills/
+
+Capa de Perfil
+
+Componente:
+
+perfil.py
+
+
+Responsabilidades:
+
+Intereses
+Objetivos
+Stack tecnológico
+Preferencias
+
+
+Fuente de verdad humana.
+
+El LLM nunca modifica directamente estos datos.
+
+Capa MCP
+
+Componentes:
+
+mcp_server.py
+mcp_server_escritura.py
+
+
+Funciones:
+
+buscar_memoria
+estado_memoria
+perfil
+huecos
+conocimiento
+
+5. Hallazgo Arquitectónico
+
+Se identificó una limitación importante.
+
+Actualmente el proyecto genera:
+
+Chunks
+✓
+
+Hechos
+✓
+
+Entidades
+✓
+
+Skills
+✓
+
+
+Pero carece de:
+
+Dominios
+✗
+
+Proyectos
+✗
+
+Síntesis global
+✗
+
+
+A medida que el sistema crezca habrá:
+
+Miles de chunks
+Miles de hechos
+Miles de entidades
+Miles de skills
+
+
+provocando fragmentación de conocimiento.
+
+La solución aprobada es introducir capas de consolidación.
+
+6. Dirección Estratégica
+
+El proyecto evolucionará hacia una memoria jerárquica.
+
+Nueva jerarquía oficial:
+
+Documento
+ ↓
+Chunk
+ ↓
+Hecho
+ ↓
+Entidad
+ ↓
+Dominio
+ ↓
+Proyecto
+ ↓
+Perfil de conocimiento
+ ↓
+Skill
+
+7. Nueva Arquitectura de Conocimiento
+
+Nueva estructura lógica:
+
+LLM-Memoria
+│
+├── Hechos
+├── Web
+├── Entidades
+├── Skills
+├── Dominios
+├── Proyectos
+├── Sintesis
+└── Analisis
+
+8. Dominios
+
+Nuevo concepto aprobado.
+
+Un dominio representa conocimiento consolidado estable.
+
+Ejemplos:
+
+Docker
+SQLite
+MCP
+Python
+Embeddings
+RAG
+
+
+Un dominio debe:
+
+Agrupar hechos relacionados.
+Agrupar entidades relacionadas.
+Consolidar conocimiento repetido.
+Mantener trazabilidad.
+Tener embedding propio.
+Actualizarse incrementalmente.
+
+Ejemplo:
+
+Docker compose
+Docker networking
+Dockerfiles
+Docker volumes
+
+
+↓
+
+Dominio Docker
+
+9. Proyectos
+
+Nuevo concepto aprobado.
+
+Un proyecto agrupa varios dominios.
+
+Ejemplo:
+
+Docker
+SQLite
+Embeddings
+MCP
+
+
+↓
+
+Proyecto Memoria Vectorial
+
+
+Debe:
+
+Mantener relaciones entre dominios.
+Generar conocimiento consolidado.
+Tener embedding propio.
+Proporcionar visión global.
+10. Sintesis
+
+Nuevo módulo futuro.
+
+Responsabilidades:
+
+Responder preguntas de alto nivel:
+
+¿Qué sé sobre X?
+
+¿Qué aprendí recientemente?
+
+¿Qué cambió?
+
+¿Qué contradicciones existen?
+
+¿Qué temas domino?
+
+¿Qué me falta aprender?
+
+¿Qué habilidades puedo generar?
+
+11. Prioridad de Recuperación
+
+La búsqueda debe dejar de priorizar fragmentos.
+
+Orden objetivo:
+
+Proyecto
+ ↓
+Dominio
+ ↓
+Skill
+ ↓
+Entidad
+ ↓
+Hecho
+ ↓
+Chunk
+
+
+Principio:
+
+Recuperar conocimiento consolidado antes que texto.
+
+12. Persistencia de Conocimiento
+
+Se aprobó introducir una capa unificada.
+
+Tabla propuesta:
+
+knowledge_nodes
+
+
+Campos mínimos:
+
+id
+node_type
+parent_id
+title
+summary
+source_path
+embedding_id
+created_at
+updated_at
+metadata
+
+
+Tipos:
+
+document
+chunk
+fact
+entity
+domain
+project
+profile
+skill
+
+
+Tabla relacional propuesta:
+
+knowledge_relations
+
+
+Campos:
+
+id
+source_id
+target_id
+relation_type
+weight
+created_at
+
+
+Relaciones:
+
+contains
+belongs_to
+depends_on
+related_to
+extends
+implements
+generated_from
+
+13. Decisiones Aprobadas
+Mantener
+
+No tocar:
+
+memoria.py
+aprender.py
+aprender_web.py
+entidades.py
+crear_skills.py
+perfil.py
+mcp_server.py
+
+
+salvo para integraciones puntuales.
+
+Reutilizar
+
+La infraestructura actual es válida.
+
+Especialmente:
+
+SQLite
+FTS5
+Embeddings
+RRF
+MCP
+Perfil
+Entidades
+Skills
+
+Evitar
+
+No reconstruir el sistema desde cero.
+
+No convertirlo en otro RAG.
+
+No aumentar embeddings indiscriminadamente.
+
+14. Regla Fundamental
+
+No vectorizar conocimiento en bruto si existe una versión consolidada.
+
+Prioridad:
+
+Proyecto
+↓
+Dominio
+↓
+Skill
+↓
+Perfil
+↓
+Entidad
+↓
+Hecho
+↓
+Chunk
+
+
+Los embeddings futuros deben representar cada vez más conocimiento sintetizado y cada vez menos fragmentos individuales.
+
+15. Estado Actual
+Completado
+Indexación incremental
+✓
+
+Búsqueda híbrida
+✓
+
+Embeddings
+✓
+
+Aprendizaje local
+✓
+
+Aprendizaje web
+✓
+
+Gestión de perfil
+✓
+
+Entidades
+✓
+
+Skills
+✓
+
+MCP lectura
+✓
+
+MCP escritura
+✓
+
+Pendiente
+Dominios
+✗
+
+Proyectos
+✗
+
+Síntesis de conocimiento
+✗
+
+Knowledge graph persistente
+✗
+
+Recuperación jerárquica
+✗
+
+16. Objetivo Final
+
+La visión final aprobada del proyecto es:
+
+No construir un buscador de documentos.
+
+No construir un RAG clásico.
+
+Construir una memoria jerárquica autoevolutiva para agentes.
+
+
+Donde un agente ya no pregunte:
+
+¿Qué documento habla de Docker?
+
+
+sino:
+
+¿Qué sabe mi memoria sobre Docker?
+
+
+y la respuesta provenga de conocimiento consolidado, dominios, proyectos, entidades y skills, manteniendo siempre trazabilidad completa hacia las fuentes originales.

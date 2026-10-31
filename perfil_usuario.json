@@ -1,0 +1,108 @@
+{
+  "version": 2,
+  "nombre": "Guillermo Samuel Simones Primera",
+  "idioma": "es",
+  "filosofia": [
+    "simplicidad",
+    "control manual",
+    "minimo numero de dependencias",
+    "primero funciona, luego optimiza"
+  ],
+  "stack_por_defecto": {
+    "frontend": ["HTML5", "CSS Vanilla", "JavaScript Vanilla"],
+    "framework": ["React", "Next.js"],
+    "datos": ["MongoDB"]
+  },
+  "reglas_inferencia": [
+    "Si pide una app o web sin especificar stack, usar stack_por_defecto.",
+    "Preferir HTML5 + CSS + JS vanilla antes que un framework salvo que lo pida.",
+    "No proponer dependencias nuevas si la stdlib resuelve el problema.",
+    "Codigo en espanol, comentarios en espanol."
+  ],
+  "actualizado": "",
+  "historial": [],
+  "presupuesto": "muy limitado",
+  "preferencias": {
+    "software": "open_source",
+    "ejecucion": "local",
+    "suscripciones": false,
+    "cloud": "evitar",
+    "aprendizaje_continuo": true
+  },
+  "hardware": {
+    "gpu": "RTX 3060 12GB",
+    "cpu": "Ryzen 5 5600G",
+    "ram": "16GB"
+  },
+  "herramientas": [
+    "n8n",
+    "Ollama",
+    "Open WebUI",
+    "LM Studio",
+    "ChromaDB",
+    "VS Code",
+    "Git",
+    "Obsidian",
+    "Whisper",
+    "ComfyUI"
+  ],
+  "areas_negocio": [
+    "automatizaciones IA",
+    "ventas online",
+    "marketing digital",
+    "agentes autonomos"
+  ],
+  "criterios_aprendizaje": {
+    "priorizar": ["gratis", "open source", "local-first", "casos reales"],
+    "evitar": ["contenido promocional", "herramientas de pago", "tutoriales obsoletos"]
+  },
+  "memoria": {
+    "habilitada": true,
+    "corto_plazo": { "max_items": 50, "retencion_dias": 7 },
+    "medio_plazo": { "max_items": 500, "retencion_dias": 90 },
+    "largo_plazo": { "max_items": 5000, "retencion_dias": 3650 },
+    "resumen_automatico": true,
+    "consolidacion_nocturna": true
+  },
+  "evaluacion": {
+    "habilitada": true,
+    "_ayuda": "Pesos que suman 100. Los umbrales viven en sistema_aprendizaje.json (puntuacion).",
+    "criterios": {
+      "relevancia": 40,
+      "utilidad": 30,
+      "confiabilidad": 20,
+      "novedad": 10
+    }
+  },
+  "aprendizaje": {
+    "nivel_actual": 0,
+    "experiencia": 0,
+    "capacidades": {
+      "aprendizaje_adaptativo": true,
+      "autoevaluacion": true,
+      "memoria_jerarquica": true,
+      "limpieza_automatica": true,
+      "promocion_memoria": true,
+      "democion_memoria": true,
+      "historial_decisiones": true,
+      "versionado": true
+    },
+    "recompensas": {
+      "hallazgo_relevante": 5,
+      "objetivo_completado": 20,
+      "fuente_confiable": 3
+    },
+    "penalizaciones": {
+      "informacion_irrelevante": -2,
+      "duplicado": -1,
+      "fuente_poco_confiable": -3
+    }
+  },
+  "estadisticas": {
+    "conocimientos_guardados": 0,
+    "conocimientos_descartados": 0,
+    "objetivos_cumplidos": 0,
+    "consultas_realizadas": 0,
+    "ultima_revision": null
+  }
+}

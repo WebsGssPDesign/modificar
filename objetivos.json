@@ -1,0 +1,83 @@
+{
+  "version": 4,
+
+  "escala_progreso": { "min": 0, "max": 100 },
+
+  "objetivos": [
+    {
+      "id": "OBJ-001",
+      "nombre": "Empresa IA Digital",
+      "estado": "activo",
+      "prioridad": 10,
+      "progreso": 0
+    },
+    {
+      "id": "OBJ-002",
+      "nombre": "Sistema MultiAgente",
+      "estado": "activo",
+      "prioridad": 10,
+      "progreso": 0
+    },
+    {
+      "id": "OBJ-003",
+      "nombre": "Aprendizaje Web Automatico",
+      "estado": "activo",
+      "prioridad": 9,
+      "progreso": 0
+    },
+    {
+      "id": "OBJ-004",
+      "nombre": "Segundo Cerebro Local",
+      "estado": "activo",
+      "prioridad": 9,
+      "progreso": 0
+    },
+    {
+      "id": "OBJ-005",
+      "nombre": "Generar Ingresos Online",
+      "estado": "activo",
+      "prioridad": 10,
+      "progreso": 0
+    }
+  ],
+
+  "criterios_exito": {
+    "empresa_ia": [
+      "clientes",
+      "automatizaciones",
+      "ingresos"
+    ],
+
+    "multiagente": [
+      "agentes_operativos",
+      "coordinacion",
+      "memoria_compartida"
+    ],
+
+    "aprendizaje": [
+      "nuevos_conocimientos",
+      "fuentes_verificadas",
+      "conocimiento_util"
+    ]
+  },
+
+  "autoevaluacion": {
+    "habilitada": true,
+    "frecuencia": "diaria",
+
+    "metricas": {
+      "conocimiento_nuevo": 0,
+      "objetivos_avanzados": 0,
+      "errores_detectados": 0,
+      "exitos_detectados": 0
+    },
+
+    "reglas": {
+      "sumar_progreso_por_hallazgo": 1,
+      "sumar_progreso_por_accion_exitosa": 2,
+      "restar_progreso_por_error": 1
+    }
+  },
+
+  "historial": []
+}

@@ -1,0 +1,43 @@
+{
+  "fecha": "2026-10-22 06:08:16",
+  "modo": "observacion",
+  "checks": {
+    "lmstudio": {
+      "estado": "ok",
+      "detalle": "2 modelos disponibles"
+    },
+    "sqlite": {
+      "estado": "ok",
+      "detalle": "222.8 MB"
+    },
+    "indice": {
+      "estado": "error",
+      "detalle": "TypeError: tuple indices must be integers or slices, not str"
+    },
+    "heartbeat": {
+      "estado": "error",
+      "detalle": "OverflowError: cannot convert float infinity to integer"
+    },
+    "incidencias": {
+      "estado": "ok",
+      "detalle": "ninguna"
+    },
+    "locks": {
+      "estado": "ok",
+      "detalle": "limpios"
+    },
+    "logs": {
+      "estado": "ok",
+      "detalle": "0.0 MB en total"
+    },
+    "deps": {
+      "estado": "ok",
+      "detalle": "completas"
+    },
+    "disco": {
+      "estado": "ok",
+      "detalle": "360.1 GB libres"
+    }
+  },
+  "peor": "error"
+}

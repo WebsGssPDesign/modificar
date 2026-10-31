@@ -1,0 +1,30 @@
+[project]
+name = "memoria-vectorial"
+version = "0.9.0"
+description = "Segundo cerebro técnico personal, 100 % local (Obsidian + SQLite + LM Studio + MCP)."
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.0",
+    "mcp>=1.2.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", ".memoria"]
+
+[tool.ruff.lint]
+# Conjunto mínimo y estable: errores de sintaxis y nombres indefinidos.
+# Endurecer gradualmente (F401, E, W, I) cuando el código quede limpio.
+select = ["E9", "F63", "F7", "F82"]

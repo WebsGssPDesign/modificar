@@ -1,0 +1,61 @@
+{
+  "version": 2,
+
+  "ciclo": [
+    "buscar",
+    "extraer",
+    "evaluar",
+    "puntuar",
+    "memorizar",
+    "actualizar_objetivos"
+  ],
+
+  "_ayuda_puntuacion": "Fuente unica de umbrales. Puntaje >= larga -> memoria larga; >= media -> media; >= corta -> corta; menor -> se descarta. Los pesos de la formula estan en perfil_usuario.json (evaluacion.criterios).",
+
+  "puntuacion": {
+    "guardar_memoria_larga": 85,
+    "guardar_memoria_media": 70,
+    "guardar_memoria_corta": 50,
+    "descartar": 49
+  },
+
+  "fuentes_confiables": [
+    "github.com",
+    "docs.n8n.io",
+    "n8n.io",
+    "ollama.com",
+    "openwebui.com",
+    "huggingface.co",
+    "python.org",
+    "readthedocs.io",
+    "react.dev",
+    "github.blog"
+  ],
+
+  "confiabilidad": {
+    "_ayuda": "La calcula el codigo, no el modelo. Un dominio (o subdominio) cuenta en el primer nivel que lo contenga.",
+    "alta": { "puntaje": 90, "dominios": [
+      "github.com", "docs.n8n.io", "n8n.io", "ollama.com", "openwebui.com",
+      "huggingface.co", "python.org", "readthedocs.io", "react.dev", "github.blog",
+      "raw.githubusercontent.com"
+    ] },
+    "media": { "puntaje": 60, "dominios": [
+      "w3schools.com", "news.ycombinator.com", "reddit.com", "phoronix.com"
+    ] },
+    "desconocida": { "puntaje": 30 }
+  },
+
+  "novedad": {
+    "_ayuda": "Pares [dias_maximos, puntaje]. Lo calcula el codigo con la fecha de publicacion.",
+    "tramos_dias": [[30, 100], [90, 80], [180, 60], [365, 40]],
+    "sin_fecha": 50,
+    "mas_antiguo": 0
+  },
+
+  "auto_mejora": {
+    "ajustar_intereses": true,
+    "ajustar_pesos": true,
+    "detectar_nuevos_temas": true,
+    "_ayuda": "Los pesos se ajustan solos en .memoria/aprendizaje_web.json. Los intereses u objetivos nuevos solo se proponen: los apruebas tu."
+  }
+}

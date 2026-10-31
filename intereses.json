@@ -1,0 +1,82 @@
+{
+  "version": 4,
+
+  "principales": [
+    "IA local",
+    "agentes autonomos",
+    "memoria para agentes",
+    "MCP",
+    "n8n",
+    "RAG",
+    "memoria vectorial",
+    "Ollama",
+    "Open WebUI",
+    "ChromaDB",
+    "SQLite-vec",
+    "Modelos open source",
+    "automatizacion",
+    "Machine Learning",
+    "Python",
+    "React",
+    "HTML",
+    "desarrollo web",
+    "marketing digital",
+    "ventas online"
+  ],
+
+  "secundarios": [
+    "SEO",
+    "ecommerce",
+    "analitica",
+    "bases de datos",
+    "Linux"
+  ],
+
+  "evitar": [
+    "software privativo",
+    "suscripciones caras",
+    "pruebas temporales",
+    "contenido spam",
+    "contenido patrocinado"
+  ],
+
+  "pesos": {
+    "agentes autonomos": 1.0,
+    "n8n": 1.0,
+    "IA local": 1.0,
+    "memoria vectorial": 0.95,
+    "memoria para agentes": 0.95,
+    "MCP": 0.95,
+    "RAG": 0.95,
+    "automatizacion": 0.95,
+    "SQLite-vec": 0.9,
+    "Ollama": 0.9,
+    "ChromaDB": 0.85,
+    "Modelos open source": 0.85,
+    "Open WebUI": 0.8,
+    "Python": 0.8,
+    "React": 0.8,
+    "HTML": 0.7,
+    "marketing digital": 0.75,
+    "SEO": 0.65,
+    "ecommerce": 0.70
+  },
+
+  "aprendizaje": {
+    "actualizacion_automatica": true,
+    "incremento_por_hallazgo_util": 0.05,
+    "decremento_por_hallazgo_irrelevante": 0.02,
+    "peso_maximo": 2.0,
+    "peso_minimo": 0.1,
+    "peso_defecto_principales": 0.8,
+    "peso_defecto_secundarios": 0.5,
+    "_ayuda": "Los ajustes automaticos NO se escriben aqui: viven en .memoria/aprendizaje_web.json. Este archivo es la base que solo edita una persona."
+  },
+
+  "estadisticas": {
+    "busquedas_realizadas": 0,
+    "hallazgos_relevantes": 0,
+    "hallazgos_descartados": 0,
+    "ultima_actualizacion": null
+  }
+}

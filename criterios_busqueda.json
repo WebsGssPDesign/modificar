@@ -1,0 +1,85 @@
+{
+  "version": 2,
+
+  "_ayuda": "Fuente unica de que buscar y donde. La lista blanca de dominios que se pueden consultar vive en Sistema/reglas.json (web.dominios_permitidos); aqui solo se prioriza.",
+
+  "fuentes_prioritarias": [
+    "github.com",
+    "docs.n8n.io",
+    "python.org",
+    "ollama.com",
+    "openwebui.com",
+    "huggingface.co",
+    "react.dev"
+  ],
+
+  "keywords": [
+    "local ai",
+    "agent memory",
+    "autonomous agents",
+    "agentes autonomos",
+    "mcp",
+    "rag",
+    "local rag",
+    "chromadb",
+    "sqlite-vec",
+    "vector database",
+    "ollama",
+    "open webui",
+    "n8n ai workflow",
+    "multi agent",
+    "open source llm",
+    "automatizacion",
+    "react",
+    "html",
+    "python"
+  ],
+
+  "idiomas": ["es", "en"],
+
+  "max_antiguedad_meses": 12,
+
+  "descartar": [
+    "contenido patrocinado",
+    "sitios de afiliados",
+    "spam seo"
+  ],
+
+  "fuentes_rss": [
+    { "nombre": "GitHub Blog", "url": "https://github.blog/feed/", "tipo": "rss", "ruido": "bajo" },
+    { "nombre": "Ollama Blog", "url": "https://ollama.com/blog/rss.xml", "tipo": "rss", "ruido": "bajo" },
+    { "nombre": "Open WebUI", "url": "https://openwebui.com/feed.xml", "tipo": "rss", "ruido": "bajo" },
+    { "nombre": "Hugging Face Blog", "url": "https://huggingface.co/blog/feed.xml", "tipo": "rss", "ruido": "bajo" },
+    { "nombre": "n8n Blog", "url": "https://blog.n8n.io/rss/", "tipo": "rss", "ruido": "bajo" },
+    { "nombre": "Hacker News", "url": "https://news.ycombinator.com/rss", "tipo": "rss", "ruido": "alto" },
+    { "nombre": "r/LocalLLaMA", "url": "https://www.reddit.com/r/LocalLLaMA/.rss", "tipo": "rss", "ruido": "alto" },
+    { "nombre": "Phoronix", "url": "https://www.phoronix.com/rss.php", "tipo": "rss", "ruido": "alto" }
+  ],
+
+  "releases_atom": [
+    { "nombre": "Ollama", "url": "https://github.com/ollama/ollama/releases.atom" },
+    { "nombre": "Open WebUI", "url": "https://github.com/open-webui/open-webui/releases.atom" },
+    { "nombre": "n8n", "url": "https://github.com/n8n-io/n8n/releases.atom" },
+    { "nombre": "Chroma", "url": "https://github.com/chroma-core/chroma/releases.atom" },
+    { "nombre": "LangChain", "url": "https://github.com/langchain-ai/langchain/releases.atom" },
+    { "nombre": "AutoGen", "url": "https://github.com/microsoft/autogen/releases.atom" }
+  ],
+
+  "documentacion_prioritaria": [
+    { "nombre": "React", "url": "https://react.dev/learn" },
+    { "nombre": "HTML (W3Schools)", "url": "https://www.w3schools.com/html/" },
+    { "nombre": "Python", "url": "https://docs.python.org/3/" }
+  ],
+
+  "apis": {
+    "github": { "activo": true, "credencial_n8n": "GitHub PAT solo lectura" },
+    "huggingface": { "activo": true }
+  },
+
+  "limites_por_ciclo": {
+    "max_consultas": 8,
+    "max_hallazgos": 20,
+    "max_evaluados": 10,
+    "max_guardados": 5
+  }
+}
