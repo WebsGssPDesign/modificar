@@ -32,15 +32,43 @@ def _guardar_incidencias(config, data: dict[str, Any]) -> None:
     escribir_json_atomico(config.incidencias_path, data)
 
 
+def _clave_dedupe(modulo: str, mensaje: str) -> str:
+    return f"{modulo}::{mensaje}"
+
+
 def registrar(
     modulo: str,
     mensaje: str,
-    *,
     gravedad: str = "media",
-    detalle: dict[str, Any] | None = None,
+    detalle: dict[str, Any] | str | None = None,
 ) -> str:
+    """Registra una incidencia y devuelve su id.
+
+    Dedupe por (modulo, mensaje): si ya existe una incidencia abierta con el
+    mismo modulo y mensaje, se incrementa `reintentos` en lugar de duplicarla.
+    `gravedad` y `detalle` pueden pasarse posicionales o por nombre (los dos
+    estilos conviven en el proyecto). Si `detalle` viene como texto libre
+    (p. ej. una URL), se guarda como {"fuente": <texto>}.
+    """
+    if isinstance(detalle, str):
+        detalle = {"fuente": detalle}
+
     config = cargar_config()
     data = _leer_incidencias(config)
+
+    clave = _clave_dedupe(modulo, mensaje)
+    for incidencia in data["incidencias"].values():
+        if (
+            incidencia.get("estado") in {"abierta", "reintentando", "aislada"}
+            and incidencia.get("modulo") == modulo
+            and incidencia.get("mensaje") == mensaje
+        ):
+            incidencia["reintentos"] = int(incidencia.get("reintentos", 1)) + 1
+            incidencia["actualizada"] = timestamp_iso()
+            if detalle:
+                incidencia.setdefault("detalle", {}).update(detalle)
+            _guardar_incidencias(config, data)
+            return incidencia["id"]
 
     incidencia_id = str(uuid.uuid4())
 
@@ -53,6 +81,7 @@ def registrar(
         "estado": "abierta",
         "reintentos": 0,
         "detalle": detalle or {},
+        "clave": clave,
     }
 
     _guardar_incidencias(config, data)
@@ -86,7 +115,7 @@ def marcar(
     return True
 
 
-def abiertas() -> list[dict[str, Any]]:
+def abiertas(modulo: str | None = None) -> list[dict[str, Any]]:
     config = cargar_config()
     data = _leer_incidencias(config)
 
@@ -94,7 +123,32 @@ def abiertas() -> list[dict[str, Any]]:
         incidencia
         for incidencia in data["incidencias"].values()
         if incidencia.get("estado") in {"abierta", "reintentando", "aislada"}
+        and (modulo is None or incidencia.get("modulo") == modulo)
     ]
+
+
+def cerrar(modulo: str, mensaje: str) -> bool:
+    """Cierra la incidencia abierta de `modulo` con ese `mensaje`.
+
+    Devuelve True si encontró y cerró alguna; False en caso contrario.
+    """
+    config = cargar_config()
+    data = _leer_incidencias(config)
+    encontro = False
+
+    for incidencia in data["incidencias"].values():
+        if (
+            incidencia.get("estado") in {"abierta", "reintentando", "aislada"}
+            and incidencia.get("modulo") == modulo
+            and incidencia.get("mensaje") == mensaje
+        ):
+            incidencia["estado"] = "cerrada"
+            incidencia["actualizada"] = timestamp_iso()
+            encontro = True
+
+    if encontro:
+        _guardar_incidencias(config, data)
+    return encontro
 
 
 def main() -> int:

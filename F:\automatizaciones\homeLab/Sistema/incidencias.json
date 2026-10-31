@@ -1,0 +1,42 @@
+{
+  "incidencias": {
+    "34692b1a-4194-4cf6-9ef6-4019f479aa13": {
+      "actualizada": "2026-10-31T11:23:00+00:00",
+      "clave": "indice::database is locked",
+      "detalle": {},
+      "estado": "cerrada",
+      "gravedad": "alta",
+      "id": "34692b1a-4194-4cf6-9ef6-4019f479aa13",
+      "mensaje": "database is locked",
+      "modulo": "indice",
+      "reintentos": 0,
+      "ts": "2026-10-31T11:23:00+00:00"
+    },
+    "da7cf10f-44f1-487f-89f4-88a52fa62fe8": {
+      "actualizada": "2026-10-31T11:22:54+00:00",
+      "clave": "indice::database is locked",
+      "detalle": {},
+      "estado": "cerrada",
+      "gravedad": "alta",
+      "id": "da7cf10f-44f1-487f-89f4-88a52fa62fe8",
+      "mensaje": "database is locked",
+      "modulo": "indice",
+      "reintentos": 0,
+      "ts": "2026-10-31T11:22:54+00:00"
+    },
+    "dea598b7-910c-40cc-984b-d9fbe68e3bc1": {
+      "actualizada": "2026-10-31T11:23:00+00:00",
+      "clave": "web::timeout",
+      "detalle": {
+        "fuente": "react.dev"
+      },
+      "estado": "abierta",
+      "gravedad": "baja",
+      "id": "dea598b7-910c-40cc-984b-d9fbe68e3bc1",
+      "mensaje": "timeout",
+      "modulo": "web",
+      "reintentos": 3,
+      "ts": "2026-10-31T11:22:54+00:00"
+    }
+  }
+}
