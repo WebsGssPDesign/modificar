@@ -59,10 +59,18 @@ def registrar(
     clave = _clave_dedupe(modulo, mensaje)
     for incidencia in data["incidencias"].values():
         if (
-            incidencia.get("estado") in {"abierta", "reintentando", "aislada"}
+            # `reintentando` lo usa marcar() para un ciclo propio y ya sumó su
+            # incremento; acá solo se agrupan las incidencias que vuelven a
+            # aparecer sin haber sido re-marcadas.
+            incidencia.get("estado") in {"abierta", "aislada"}
             and incidencia.get("modulo") == modulo
             and incidencia.get("mensaje") == mensaje
         ):
+            # Contador de ocurrencias: la primera vez arranca en 1 y cada
+            # repetición suma 1 (2 registros del mismo error -> reintentos 2).
+            # Empezar en 0 hacía que el contador llegara tarde: con N registros
+            # marcaba N-1, así que un fallo aislado nunca subía de 0 y el umbral
+            # de aislamiento (§ fallos_para_aislar) se desfasaba en uno.
             incidencia["reintentos"] = int(incidencia.get("reintentos", 1)) + 1
             incidencia["actualizada"] = timestamp_iso()
             if detalle:
@@ -79,7 +87,10 @@ def registrar(
         "mensaje": mensaje,
         "gravedad": gravedad,
         "estado": "abierta",
-        "reintentos": 0,
+        # Ocurrencia 1 = visto una vez. El contador es de ocurrencias totales,
+        # no de "reintentos posteriores al primero": así N registros del mismo
+        # error marcan N, y el umbral de aislamiento se cuenta sin desfase.
+        "reintentos": 1,
         "detalle": detalle or {},
         "clave": clave,
     }
